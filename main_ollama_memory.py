@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import ollama # Import the library
-
+from typing import List
 # --- Global Storage for the Client ---
 ml_resources = {}
 
@@ -34,26 +34,34 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# --- Define Input for LLM ---
-class PromptInput(BaseModel):
-    prompt: str
-    model_name: str = "qwen3:4b" # Default model
+# # --- Define Input for LLM ---
+# class PromptInput(BaseModel):
+#     prompt: str
+#     model_name: str = "qwen3:4b" # Default model
 
-@app.post("/generate")
-def generate_text(input_data: PromptInput):
+class Message(BaseModel):
+    role: str
+    content: str
+
+class ChatInput(BaseModel):
+    messages: List[Message]
+    model_name: str = 'qwen3:4b'
+
+
+
+
+@app.post("/chat")
+def generate_text(input_data: ChatInput):
     client = ml_resources.get("ollama")
     
     if not client:
         raise HTTPException(status_code=503, detail="Ollama service unavailable")
 
+    history = [ msg.model_dump() for msg in input_data.messages]
+    print(f"Received conversation with {len(history)} messages.")
     # Call Ollama
     try:
-        response = client.chat(model=input_data.model_name, messages=[
-            {
-                'role': 'user',
-                'content': input_data.prompt,
-            },
-        ])
+        response = client.chat(model=input_data.model_name, messages=history)
         return {"response": response['message']['content']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
