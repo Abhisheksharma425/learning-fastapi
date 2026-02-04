@@ -22,3 +22,7 @@ def read_items(items_id: int, q: str = None):
 def list_items(limit: int = 10):
     print(db)
     return db[:limit]
+
+@app.get("/buy/")
+def check_out(items: str):
+    return {'items':items} #http://127.0.0.1:8000/buy/?items=shirt -- > example
